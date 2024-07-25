@@ -1,16 +1,17 @@
 using Godot;
 
-namespace cmos.Test; 
-
 [Tool]
-public partial class MapGenerator : Node {
+public partial class MapGenerator : Node
+{
     private int _mapWidth = 512;
     private int _mapHeight = 512;
     private float _noiseScale = 1;
-    
+
     [Export]
-    public int MapWidth {
-        set {
+    public int MapWidth
+    {
+        set
+        {
             _mapWidth = value;
             GenerateMap();
         }
@@ -19,8 +20,10 @@ public partial class MapGenerator : Node {
 
 
     [Export]
-    public int MapHeight {
-        set {
+    public int MapHeight
+    {
+        set
+        {
             _mapHeight = value;
             GenerateMap();
         }
@@ -29,16 +32,19 @@ public partial class MapGenerator : Node {
 
 
     [Export(PropertyHint.Range, "0.0001, 50, 0.0001, or_greater")]
-    public float MapScale {
-        set {
+    public float MapScale
+    {
+        set
+        {
             _noiseScale = value;
             GenerateMap();
         }
         get => _noiseScale;
     }
-    
-    public void GenerateMap() {
+
+    public void GenerateMap()
+    {
         var noiseMap = NoiseGenerator.Instance.GenerateNoiseMap(MapWidth, MapHeight, MapScale);
-        GetNode<MapDisplay>("%MapDisplay").DrawNoiseMap(noiseMap);
+        GetNode<MapDisplay>("%MapDisplay")?.DrawNoiseMap(noiseMap);
     }
 }
