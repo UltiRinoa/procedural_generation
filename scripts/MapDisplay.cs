@@ -5,23 +5,19 @@ public partial class MapDisplay : Node
 {
 
     [Export] private TextureRect _mapTextureRect;
+    [Export] private MeshInstance3D _meshInstance;
+    [Export] private ShaderMaterial _terrainMaterial;
 
-    public void DrawNoiseMap(float[,] noiseMap)
+
+    public void DrawTexture(ImageTexture texture)
     {
-        var width = noiseMap.GetLength(0);
-        var height = noiseMap.GetLength(1);
-        var image = new Image();
-        image.SetData(width, height, false, Image.Format.Rgba8, new byte[width * height * 4]);
-        for (var y = 0; y < height; y++)
-            for (var x = 0; x < width; x++)
-            {
-                image.SetPixel(x, y, Colors.Black.Lerp(Colors.White, noiseMap[x, y]));
-            }
+        _mapTextureRect.Texture = texture;
+    }
 
-        foreach (var item in GetChildren())
-        {
-            
-        }
-        _mapTextureRect.Texture = ImageTexture.CreateFromImage(image);
+    public void DrawMesh(ArrayMesh mesh, ImageTexture texture)
+    {
+        _meshInstance.Mesh = mesh;
+        mesh.SurfaceSetMaterial(0, _terrainMaterial);
+        (mesh.SurfaceGetMaterial(0) as ShaderMaterial).SetShaderParameter("main_texture", texture);
     }
 }
