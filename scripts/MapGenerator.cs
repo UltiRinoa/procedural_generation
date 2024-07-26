@@ -4,7 +4,7 @@ using static Godot.BaseButton;
 
 namespace cmos.Test;
 
-public enum DrawMode { NoiseMap, ColorMap }
+public enum DrawMode { NoiseMap, ColorMap, Mesh }
 
 [Tool]
 public partial class MapGenerator : Node
@@ -164,6 +164,9 @@ public partial class MapGenerator : Node
                 break;
             case DrawMode.ColorMap:
                 GetNode<MapDisplay>("%MapDisplay").DrawTexture(TextureGenerator.Instance.TextureFromColorMap(colorMap));
+                break;
+            case DrawMode.Mesh:
+                GetNode<MapDisplay>("%MapDisplay").DrawMesh(MeshGenerator.Instance.GenerateMesh(noiseMap), TextureGenerator.Instance.TextureFromColorMap(colorMap));
                 break;
         }
     }
