@@ -1,25 +1,24 @@
 using System;
 using Godot;
 
-
-namespace cmos.Test;
-
 [Tool]
 public partial class MapDisplay : Node
 {
 
     [Export] private TextureRect _mapTextureRect;
-    [Export] private MeshInstance3D _meshInstance3D;
+    [Export] private MeshInstance3D _meshInstance;
+    [Export] private ShaderMaterial _terrainMaterial;
+
 
     public void DrawTexture(ImageTexture texture)
     {
         _mapTextureRect.Texture = texture;
     }
 
-    internal void DrawMesh(ArrayMesh arrayMesh, ImageTexture imageTexture)
+    public void DrawMesh(ArrayMesh mesh, ImageTexture texture)
     {
-        _meshInstance3D.Mesh = arrayMesh;
-        var material = _meshInstance3D.GetActiveMaterial(0) as BaseMaterial3D;
-        material.AlbedoTexture = imageTexture;
+        _meshInstance.Mesh = mesh;
+        mesh.SurfaceSetMaterial(0, _terrainMaterial);
+        (mesh.SurfaceGetMaterial(0) as ShaderMaterial).SetShaderParameter("main_texture", texture);
     }
 }

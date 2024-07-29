@@ -36,6 +36,7 @@ public class TextureGenerator
                 image.SetPixel(x, y, colorMap[x, y]);
             }
 
+
         var texture = ImageTexture.CreateFromImage(image);
         return texture;
     }

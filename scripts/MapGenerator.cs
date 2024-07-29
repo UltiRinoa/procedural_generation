@@ -19,6 +19,8 @@ public partial class MapGenerator : Node
     private float _lacunarity = 1f;
     private Vector2 _offset;
     private DrawMode _drawMode;
+    private float _heightScale;
+
 
     [Export(PropertyHint.Enum)]
     public DrawMode DrawMode
@@ -30,6 +32,7 @@ public partial class MapGenerator : Node
         }
         get => _drawMode;
     }
+
     [Export]
     public Gradient ColorRamp
     {
@@ -39,6 +42,17 @@ public partial class MapGenerator : Node
             GenerateMap();
         }
         get => _colorRamp;
+    }
+
+    [Export]
+    public float HeightScale
+    {
+        set
+        {
+            _heightScale = value;
+            GenerateMap();
+        }
+        get => _heightScale;
     }
 
     [ExportGroup("Noise")]
@@ -166,7 +180,7 @@ public partial class MapGenerator : Node
                 GetNode<MapDisplay>("%MapDisplay").DrawTexture(TextureGenerator.Instance.TextureFromColorMap(colorMap));
                 break;
             case DrawMode.Mesh:
-                GetNode<MapDisplay>("%MapDisplay").DrawMesh(MeshGenerator.Instance.GenerateMesh(noiseMap), TextureGenerator.Instance.TextureFromColorMap(colorMap));
+                GetNode<MapDisplay>("%MapDisplay").DrawMesh(MeshGenerator.Instance.GenerateMesh(noiseMap, HeightScale), TextureGenerator.Instance.TextureFromColorMap(colorMap));
                 break;
         }
     }
