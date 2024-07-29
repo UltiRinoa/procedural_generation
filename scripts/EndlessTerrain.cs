@@ -1,28 +1,40 @@
-using System;
 using System.Collections.Generic;
 using Godot;
 
 [Tool]
-public partial class EndlessTerrian : Node3D
+public partial class EndlessTerrain : Node3D
 {
-    public const float MaxViewDist = 450;
+    public const float MaxViewDist = 400;
     public static Vector2 ViewerPosition;
     [Export] public Node3D Viewer;
-    [Export] public MapGenerator MapGenerator;
+    public static MapGenerator MapGenerator;
 
     private int _chunkSize;
     private int _chunksVisibleInViewDist;
     private Dictionary<Vector2, TerrainChunk> _terrainChunkDictionary = new();
     private List<TerrainChunk> _terrainChunksVisibleLastUpdateList = new();
+    private bool _isEnabled;
 
     public override void _Ready()
     {
         _chunkSize = MapGenerator.MapChunkSize - 1;
         _chunksVisibleInViewDist = Mathf.RoundToInt(MaxViewDist / _chunkSize);
+        MapGenerator = GetNode<MapGenerator>("%MapGenerator");
+
+        if (!Engine.IsEditorHint())
+        {
+            _isEnabled = true;
+        }
     }
 
     public override void _Process(double delta)
     {
+        if (Input.IsKeyPressed(Key.Space))
+        {
+            _isEnabled = !_isEnabled;
+        }
+
+        if (!_isEnabled) return;
         ViewerPosition = new Vector2(Viewer.GlobalPosition.X, Viewer.GlobalPosition.Z);
         UpdateVisibleChunks();
     }
@@ -63,6 +75,21 @@ public partial class EndlessTerrian : Node3D
         }
     }
 
+    public override void _Notification(int what)
+    {
+        switch ((long)what)
+        {
+            case NotificationEditorPreSave:
+                foreach (var child in GetChildren())
+                {
+                    child.Owner = null;
+                    child.QueueFree();
+                }
+
+                break;
+        }
+    }
+
     public class TerrainChunk
     {
         private MeshInstance3D _meshInstance;
@@ -76,12 +103,21 @@ public partial class EndlessTerrian : Node3D
             var positionV3 = new Vector3(_globalPosition.X, 0, _globalPosition.Y);
 
             _meshInstance = new MeshInstance3D();
-            _meshInstance.Mesh = new PlaneMesh();
-            (_meshInstance.Mesh as PlaneMesh).Size = Vector2.One;
             _meshInstance.Position = positionV3;
-            _meshInstance.Scale = Vector3.One * size;
             parent.AddChild(_meshInstance);
+            _meshInstance.Owner = parent.Owner;
             _meshInstance.Visible = false;
+            MapGenerator.RequestMapData(OnMapDataGenerated);
+        }
+
+        private void OnMapDataGenerated(MapData data)
+        {
+            MapGenerator.RequestArrayMesh(data, OnArrayMeshGenerated);
+        }
+
+        private void OnArrayMeshGenerated(ArrayMesh mesh)
+        {
+            _meshInstance.Mesh = mesh;
         }
 
         public void UpdateTerrainChunk()
