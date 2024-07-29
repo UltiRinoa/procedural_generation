@@ -1,8 +1,5 @@
 using Godot;
 
-
-namespace cmos.Test;
-
 public class NoiseGenerator
 {
     private static NoiseGenerator _instance;
