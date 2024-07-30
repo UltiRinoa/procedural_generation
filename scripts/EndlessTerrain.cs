@@ -6,7 +6,7 @@ using Godot;
 public partial class EndlessTerrain : Node3D
 {
     [Export] public Node3D Viewer;
-    [Export] public ShaderMaterial TerrainMaterial;
+    [Export] public Shader TerrainShader;
     public static MapGenerator MapGenerator;
     public static float MaxViewDist;
     public LODInfo[] _detailLevels = new[] {
@@ -71,7 +71,7 @@ public partial class EndlessTerrain : Node3D
                 }
                 else
                 {
-                    _terrainChunkDictionary.Add(viewedChunkCoord, new TerrainChunk(viewedChunkCoord, _chunkSize, _detailLevels, this, TerrainMaterial));
+                    _terrainChunkDictionary.Add(viewedChunkCoord, new TerrainChunk(viewedChunkCoord, _chunkSize, _detailLevels, this, TerrainShader));
                 }
             }
         }
@@ -95,7 +95,7 @@ public partial class EndlessTerrain : Node3D
     public class TerrainChunk
     {
         private MeshInstance3D _meshInstance;
-        private Vector2 _globalPosition;
+        private Vector2 _position;
         private int _size;
         private MapData _mapData;
         private bool _mapDataReceived;
@@ -103,15 +103,16 @@ public partial class EndlessTerrain : Node3D
         private LODMesh[] _lodMeshes;
         private int _previousLodIndex = -1;
 
-        public TerrainChunk(Vector2 coord, int size, LODInfo[] detailLevels, Node3D parent, ShaderMaterial material)
+        public TerrainChunk(Vector2 coord, int size, LODInfo[] detailLevels, Node3D parent, Shader shader)
         {
             _detailLevels = detailLevels;
-            _globalPosition = coord * size;
+            _position = coord * size;
             _size = size;
 
-            _meshInstance.MaterialOverride = material.Duplicate();
-            var positionV3 = new Vector3(_globalPosition.X, 0, _globalPosition.Y);
+            var positionV3 = new Vector3(_position.X, 0, _position.Y);
             _meshInstance = new MeshInstance3D();
+            _meshInstance.MaterialOverride = new ShaderMaterial();
+            (_meshInstance.MaterialOverride as ShaderMaterial).Shader = shader;
             _meshInstance.Position = positionV3;
             parent.AddChild(_meshInstance);
             _meshInstance.Owner = parent.Owner;
@@ -123,7 +124,7 @@ public partial class EndlessTerrain : Node3D
                 _lodMeshes[i] = new LODMesh(detailLevels[i].lod, UpdateTerrainChunk);
             }
 
-            MapGenerator.RequestMapData(OnMapDataGenerated);
+            MapGenerator.RequestMapData(_position, OnMapDataGenerated);
         }
 
         private void OnMapDataGenerated(MapData data)
@@ -132,7 +133,7 @@ public partial class EndlessTerrain : Node3D
             _mapDataReceived = true;
 
             var texture = TextureGenerator.Instance.TextureFromColorMap(data.colorMap);
-            (_meshInstance.GetSurfaceOverrideMaterial(0) as ShaderMaterial).SetShaderParameter("main_texture", texture);
+            (_meshInstance.MaterialOverride as ShaderMaterial).SetShaderParameter("main_texture", texture);
             UpdateTerrainChunk();
         }
 
@@ -140,7 +141,7 @@ public partial class EndlessTerrain : Node3D
         {
             if (!_mapDataReceived) return;
 
-            float viewerDstFromNearestEdge = Utils.BoxSdf(ViewerPosition - _globalPosition, new Vector2(_size, _size));
+            float viewerDstFromNearestEdge = Utils.BoxSdf(ViewerPosition - _position, new Vector2(_size, _size));
             var visible = viewerDstFromNearestEdge <= MaxViewDist;
             if (visible)
             {

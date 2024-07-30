@@ -83,19 +83,19 @@ public partial class MapGenerator : Node
         }
     }
 
-    public void RequestMapData(Action<MapData> callback)
+    public void RequestMapData(Vector2 center, Action<MapData> callback)
     {
         ThreadStart threadStart = delegate
         {
-            MapDataThread(callback);
+            MapDataThread(center, callback);
         };
 
         new Thread(threadStart).Start();
     }
 
-    private void MapDataThread(Action<MapData> callback)
+    private void MapDataThread(Vector2 center, Action<MapData> callback)
     {
-        var mapData = GenerateMapData();
+        var mapData = GenerateMapData(center);
         lock (_mapDataThreadingQueue)
         {
             _mapDataThreadingQueue.Enqueue(new(callback, mapData));
@@ -121,9 +121,9 @@ public partial class MapGenerator : Node
         }
     }
 
-    private MapData GenerateMapData()
+    private MapData GenerateMapData(Vector2 center)
     {
-        var noiseMap = NoiseGenerator.Instance.GenerateNoiseMap(MapChunkSize, MapChunkSize, Seed, MapScale, Octaves, Persistance, Lacunarity, Offset);
+        var noiseMap = NoiseGenerator.Instance.GenerateNoiseMap(MapChunkSize, MapChunkSize, Seed, MapScale, Octaves, Persistance, Lacunarity, center + Offset);
         var colorMap = new Color[MapChunkSize, MapChunkSize];
 
         for (int y = 0; y < MapChunkSize; y++)

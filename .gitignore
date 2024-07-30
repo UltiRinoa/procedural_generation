@@ -732,3 +732,5 @@ healthchecksdb
 MigrationBackup/
 *.code-workspace
 *.csproj
+*.old
+*.sln
