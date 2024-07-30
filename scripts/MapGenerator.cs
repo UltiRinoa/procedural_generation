@@ -18,7 +18,7 @@ public partial class MapGenerator : Node
     [Export] public float HeightScale;
     [Export] public Curve HeightCurve;
 
-    [Export(PropertyHint.Range, "0, 6, 1")] public int Lod;
+    [Export(PropertyHint.Range, "0, 6, 1")] public int EditorLod;
 
     [ExportGroup("Noise")]
     [Export(PropertyHint.Range, "0.0001, 50, 0.0001, or_greater")]
@@ -78,7 +78,7 @@ public partial class MapGenerator : Node
                 GetNode<MapDisplay>("%MapDisplay").DrawTexture(TextureGenerator.Instance.TextureFromColorMap(mapData.colorMap));
                 break;
             case DrawMode.Mesh:
-                GetNode<MapDisplay>("%MapDisplay").DrawMesh(MeshGenerator.Instance.GenerateMesh(mapData.heightMap, HeightScale, HeightCurve, Lod), TextureGenerator.Instance.TextureFromColorMap(mapData.colorMap));
+                GetNode<MapDisplay>("%MapDisplay").DrawMesh(MeshGenerator.Instance.GenerateMesh(mapData.heightMap, HeightScale, HeightCurve, EditorLod), TextureGenerator.Instance.TextureFromColorMap(mapData.colorMap));
                 break;
         }
     }
@@ -102,19 +102,19 @@ public partial class MapGenerator : Node
         }
     }
 
-    public void RequestArrayMesh(MapData mapData, Action<ArrayMesh> callback)
+    public void RequestArrayMesh(MapData mapData, int lod, Action<ArrayMesh> callback)
     {
         ThreadStart threadStart = delegate
         {
-            ArrayMeshThread(mapData, callback);
+            ArrayMeshThread(mapData, lod, callback);
         };
 
         new Thread(threadStart).Start();
     }
 
-    private void ArrayMeshThread(MapData mapData, Action<ArrayMesh> callback)
+    private void ArrayMeshThread(MapData mapData, int lod, Action<ArrayMesh> callback)
     {
-        var arrayMesh = MeshGenerator.Instance.GenerateMesh(mapData.heightMap, MapScale, HeightCurve, Lod);
+        var arrayMesh = MeshGenerator.Instance.GenerateMesh(mapData.heightMap, MapScale, HeightCurve, lod);
         lock (_arrayMeshThreadingQueue)
         {
             _arrayMeshThreadingQueue.Enqueue(new(callback, arrayMesh));
