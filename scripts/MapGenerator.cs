@@ -14,6 +14,10 @@ public partial class MapGenerator : Node
 
     [Export(PropertyHint.Enum)]
     public DrawMode DrawMode;
+
+    [Export(PropertyHint.Enum)]
+    public NoiseGenerator.NormalizeMode NormalizeMode;
+
     [Export] public Gradient ColorRamp;
     [Export] public float HeightScale;
     [Export] public Curve HeightCurve;
@@ -114,7 +118,7 @@ public partial class MapGenerator : Node
 
     private void ArrayMeshThread(MapData mapData, int lod, Action<ArrayMesh> callback)
     {
-        var arrayMesh = MeshGenerator.Instance.GenerateMesh(mapData.heightMap, MapScale, HeightCurve, lod);
+        var arrayMesh = MeshGenerator.Instance.GenerateMesh(mapData.heightMap, HeightScale, HeightCurve, lod);
         lock (_arrayMeshThreadingQueue)
         {
             _arrayMeshThreadingQueue.Enqueue(new(callback, arrayMesh));
@@ -123,7 +127,7 @@ public partial class MapGenerator : Node
 
     private MapData GenerateMapData(Vector2 center)
     {
-        var noiseMap = NoiseGenerator.Instance.GenerateNoiseMap(MapChunkSize, MapChunkSize, Seed, MapScale, Octaves, Persistance, Lacunarity, center + Offset);
+        var noiseMap = NoiseGenerator.Instance.GenerateNoiseMap(MapChunkSize, MapChunkSize, Seed, MapScale, Octaves, Persistance, Lacunarity, center + Offset, NormalizeMode);
         var colorMap = new Color[MapChunkSize, MapChunkSize];
 
         for (int y = 0; y < MapChunkSize; y++)

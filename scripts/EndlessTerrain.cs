@@ -11,8 +11,8 @@ public partial class EndlessTerrain : Node3D
     public static float MaxViewDist;
     public LODInfo[] _detailLevels = new[] {
         new LODInfo(0, 200),
-        new LODInfo(2, 400),
-        new LODInfo(4,600),
+        new LODInfo(1, 400),
+        new LODInfo(2,600),
     };
     public static Vector2 ViewerPosition;
 
@@ -22,7 +22,7 @@ public partial class EndlessTerrain : Node3D
     private int _chunkSize;
     private int _chunksVisibleInViewDist;
     private Dictionary<Vector2, TerrainChunk> _terrainChunkDictionary = new();
-    private List<TerrainChunk> _terrainChunksVisibleLastUpdateList = new();
+    public static List<TerrainChunk> _terrainChunksVisibleLastUpdateList = new();
 
     public override void _Ready()
     {
@@ -50,6 +50,7 @@ public partial class EndlessTerrain : Node3D
         {
             chunk.SetVisible(false);
         }
+
         _terrainChunksVisibleLastUpdateList.Clear();
 
         var currentChunkCoordX = Mathf.RoundToInt(ViewerPosition.X / _chunkSize);
@@ -64,10 +65,6 @@ public partial class EndlessTerrain : Node3D
                 if (_terrainChunkDictionary.TryGetValue(viewedChunkCoord, out var terrainChunk))
                 {
                     terrainChunk.UpdateTerrainChunk();
-                    if (terrainChunk.IsVisible())
-                    {
-                        _terrainChunksVisibleLastUpdateList.Add(terrainChunk);
-                    }
                 }
                 else
                 {
@@ -86,8 +83,16 @@ public partial class EndlessTerrain : Node3D
                 {
                     child.Owner = null;
                     child.QueueFree();
+                    _terrainChunksVisibleLastUpdateList.Clear();
                 }
-
+                break;
+            case NotificationExitTree:
+                foreach (var child in GetChildren())
+                {
+                    child.Owner = null;
+                    child.QueueFree();
+                    _terrainChunksVisibleLastUpdateList.Clear();
+                }
                 break;
         }
     }
@@ -167,7 +172,7 @@ public partial class EndlessTerrain : Node3D
                         lodMesh.RequestMesh(_mapData);
                     }
                 }
-
+                _terrainChunksVisibleLastUpdateList.Add(this);
             }
             SetVisible(visible);
         }

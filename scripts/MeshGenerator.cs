@@ -1,3 +1,4 @@
+using System;
 using Godot;
 
 public class MeshGenerator
@@ -24,7 +25,8 @@ public class MeshGenerator
             {
                 surfaceTool.SetSmoothGroup(uint.MaxValue);
                 surfaceTool.SetUV(new(x / (float)width, y / (float)width));
-                surfaceTool.AddVertex(new(topLeftX + x, heightCurve.Sample(heightMap[x, y]) * scale, topLeftY + y));
+                var height = heightMap[x, y] > 1 ? heightMap[x, y] : heightCurve.Sample(heightMap[x, y]);
+                surfaceTool.AddVertex(new(topLeftX + x, height * scale, topLeftY + y));
 
                 if (x < width - 1 && y < width - 1)
                 {
