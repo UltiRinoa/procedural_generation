@@ -96,7 +96,7 @@ public class NoiseGenerator
                         break;
                     case NormalizeMode.Global:
                         // noiseMap[x, y] = (noiseMap[x, y] / maxPossibleHeight + 1) / 2;
-                        noiseMap[x, y] = (noiseMap[x, y] + 1) / (maxPossibleHeight * 0.9f);
+                        noiseMap[x, y] = (noiseMap[x, y] + 1) / (maxPossibleHeight / 0.9f);
                         break;
                 }
             }

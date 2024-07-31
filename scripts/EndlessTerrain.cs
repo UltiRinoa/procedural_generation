@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using Godot;
 
 [Tool]
@@ -10,9 +11,9 @@ public partial class EndlessTerrain : Node3D
     public static MapGenerator MapGenerator;
     public static float MaxViewDist;
     public LODInfo[] _detailLevels = new[] {
-        new LODInfo(0, 200),
-        new LODInfo(1, 400),
-        new LODInfo(2,600),
+        new LODInfo(0, 200, false),
+        new LODInfo(1, 250, true),
+        new LODInfo(4, 400, false),
     };
     public static Vector2 ViewerPosition;
 
@@ -27,7 +28,7 @@ public partial class EndlessTerrain : Node3D
     public override void _Ready()
     {
         _chunkSize = MapGenerator.MapChunkSize - 1;
-        MaxViewDist = _detailLevels[^1].visibleDstThreshold;
+        MaxViewDist = _detailLevels[^1].VisibleDstThreshold;
         _chunksVisibleInViewDist = Mathf.RoundToInt(MaxViewDist / _chunkSize);
         MapGenerator = GetNode<MapGenerator>("%MapGenerator");
 
@@ -100,12 +101,15 @@ public partial class EndlessTerrain : Node3D
     public class TerrainChunk
     {
         private MeshInstance3D _meshInstance;
+        private CollisionShape3D _collisionShape;
         private Vector2 _position;
         private int _size;
         private MapData _mapData;
         private bool _mapDataReceived;
         private LODInfo[] _detailLevels;
         private LODMesh[] _lodMeshes;
+        private LODMesh _collisionMesh;
+
         private int _previousLodIndex = -1;
 
         public TerrainChunk(Vector2 coord, int size, LODInfo[] detailLevels, Node3D parent, Shader shader)
@@ -116,17 +120,27 @@ public partial class EndlessTerrain : Node3D
 
             var positionV3 = new Vector3(_position.X, 0, _position.Y);
             _meshInstance = new MeshInstance3D();
+            _collisionShape = new CollisionShape3D();
             _meshInstance.MaterialOverride = new ShaderMaterial();
             (_meshInstance.MaterialOverride as ShaderMaterial).Shader = shader;
             _meshInstance.Position = positionV3;
-            parent.AddChild(_meshInstance);
+
+            var staticBody = new StaticBody3D();
+            staticBody.AddChild(_meshInstance);
+            staticBody.AddChild(_collisionShape);
+            parent.AddChild(staticBody);
+            staticBody.Owner = parent.Owner;
             _meshInstance.Owner = parent.Owner;
+            _collisionShape.Owner = parent.Owner;
             _meshInstance.Visible = false;
 
             _lodMeshes = new LODMesh[_detailLevels.Length];
             for (var i = 0; i < _lodMeshes.Length; i++)
             {
-                _lodMeshes[i] = new LODMesh(detailLevels[i].lod, UpdateTerrainChunk);
+                _lodMeshes[i] = new LODMesh(detailLevels[i].Lod, UpdateTerrainChunk);
+
+                if (detailLevels[i].UsedForCollider)
+                    _collisionMesh = _lodMeshes[i];
             }
 
             MapGenerator.RequestMapData(_position, OnMapDataGenerated);
@@ -153,7 +167,7 @@ public partial class EndlessTerrain : Node3D
                 var lodIndex = 0;
                 for (int i = 0; i < _detailLevels.Length - 1; i++)
                 {
-                    if (viewerDstFromNearestEdge > _detailLevels[i].visibleDstThreshold)
+                    if (viewerDstFromNearestEdge > _detailLevels[i].VisibleDstThreshold)
                     {
                         lodIndex = i + 1;
                     }
@@ -172,6 +186,19 @@ public partial class EndlessTerrain : Node3D
                         lodMesh.RequestMesh(_mapData);
                     }
                 }
+
+                if (lodIndex == 0)
+                {
+                    if (_collisionMesh.hasMesh)
+                    {
+                        _collisionShape.Shape = _collisionMesh.ArrayMesh.CreateTrimeshShape();
+                    }
+                    else if (!_collisionMesh.hasRequestMesh)
+                    {
+                        _collisionMesh.RequestMesh(_mapData);
+                    }
+                }
+
                 _terrainChunksVisibleLastUpdateList.Add(this);
             }
             SetVisible(visible);
@@ -218,13 +245,15 @@ public partial class EndlessTerrain : Node3D
 
     public struct LODInfo
     {
-        public int lod;
-        public float visibleDstThreshold;
+        public int Lod;
+        public float VisibleDstThreshold;
+        public bool UsedForCollider;
 
-        public LODInfo(int lod, float visibleDstThreshold)
+        public LODInfo(int lod, float visibleDstThreshold, bool usedForCollider)
         {
-            this.lod = lod;
-            this.visibleDstThreshold = visibleDstThreshold;
+            Lod = lod;
+            VisibleDstThreshold = visibleDstThreshold;
+            UsedForCollider = usedForCollider;
         }
     }
 }

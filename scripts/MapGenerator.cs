@@ -4,13 +4,12 @@ using System.Collections.Generic;
 using System.Threading;
 using Godot;
 
-public enum DrawMode { NoiseMap, ColorMap, Mesh }
+public enum DrawMode { NoiseMap, ColorMap, Mesh, falloff }
 
 [Tool]
 public partial class MapGenerator : Node
 {
-    private int _seed;
-    public const int MapChunkSize = 241;
+    public const int MapChunkSize = 239;
 
     [Export(PropertyHint.Enum)]
     public DrawMode DrawMode;
@@ -18,8 +17,9 @@ public partial class MapGenerator : Node
     [Export(PropertyHint.Enum)]
     public NoiseGenerator.NormalizeMode NormalizeMode;
 
-    [Export] public Gradient ColorRamp;
     [Export] public float HeightScale;
+    [Export] public bool useFalloff;
+    [Export] public Gradient ColorRamp;
     [Export] public Curve HeightCurve;
 
     [Export(PropertyHint.Range, "0, 6, 1")] public int EditorLod;
@@ -30,26 +30,21 @@ public partial class MapGenerator : Node
 
     [Export(PropertyHint.Range, "1, 20, 1, or_greater")]
     public int Octaves;
-
     [Export(PropertyHint.Range, "0, 1, 0.001")]
     public float Persistance;
     [Export] public float Lacunarity;
-
-    [Export]
-    public int Seed
-    {
-        set
-        {
-            _seed = value;
-        }
-        get => _seed;
-    }
-
+    [Export] public int Seed;
     [Export] public Vector2 Offset;
 
     private Queue<MapThreadInfo<MapData>> _mapDataThreadingQueue = new();
     private Queue<MapThreadInfo<ArrayMesh>> _arrayMeshThreadingQueue = new();
 
+    private float[,] _falloffMapData;
+
+    public override void _Ready()
+    {
+        _falloffMapData = FalloffGenerator.Instance.GenerateFalloffMap(MapChunkSize);
+    }
 
     public override void _Process(double delta)
     {
@@ -69,10 +64,16 @@ public partial class MapGenerator : Node
                 threadInfo.Callback(threadInfo.parameter);
             }
         }
+
+        if (Input.IsKeyPressed(Key.Space))
+        {
+            DrawMap();
+        }
     }
 
-    public void DrawMap(MapData mapData)
+    public void DrawMap()
     {
+        var mapData = GenerateMapData(Vector2.Zero);
         switch (DrawMode)
         {
             case DrawMode.NoiseMap:
@@ -83,6 +84,9 @@ public partial class MapGenerator : Node
                 break;
             case DrawMode.Mesh:
                 GetNode<MapDisplay>("%MapDisplay").DrawMesh(MeshGenerator.Instance.GenerateMesh(mapData.heightMap, HeightScale, HeightCurve, EditorLod), TextureGenerator.Instance.TextureFromColorMap(mapData.colorMap));
+                break;
+            case DrawMode.falloff:
+                GetNode<MapDisplay>("%MapDisplay").DrawTexture(TextureGenerator.Instance.TextureFromHeightMap(FalloffGenerator.Instance.GenerateFalloffMap(MapChunkSize)));
                 break;
         }
     }
@@ -127,7 +131,7 @@ public partial class MapGenerator : Node
 
     private MapData GenerateMapData(Vector2 center)
     {
-        var noiseMap = NoiseGenerator.Instance.GenerateNoiseMap(MapChunkSize, MapChunkSize, Seed, MapScale, Octaves, Persistance, Lacunarity, center + Offset, NormalizeMode);
+        var noiseMap = NoiseGenerator.Instance.GenerateNoiseMap(MapChunkSize + 2, MapChunkSize + 2, Seed, MapScale, Octaves, Persistance, Lacunarity, center + Offset, NormalizeMode);
         var colorMap = new Color[MapChunkSize, MapChunkSize];
 
         for (int y = 0; y < MapChunkSize; y++)
@@ -135,6 +139,11 @@ public partial class MapGenerator : Node
             for (int x = 0; x < MapChunkSize; x++)
             {
                 float currHeight = noiseMap[x, y];
+                if (useFalloff)
+                {
+                    currHeight = Mathf.Max(currHeight - _falloffMapData[x, y], 0);
+                    noiseMap[x, y] = currHeight;
+                }
                 colorMap[x, y] = ColorRamp.Sample(currHeight);
             }
         }
