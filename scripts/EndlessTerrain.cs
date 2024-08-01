@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using System.Threading;
 using Godot;
 
 [Tool]
@@ -121,11 +122,11 @@ public partial class EndlessTerrain : Node3D
             var positionV3 = new Vector3(_position.X, 0, _position.Y);
             _meshInstance = new MeshInstance3D();
             _collisionShape = new CollisionShape3D();
+            var staticBody = new StaticBody3D();
+
             _meshInstance.MaterialOverride = new ShaderMaterial();
             (_meshInstance.MaterialOverride as ShaderMaterial).Shader = shader;
-            _meshInstance.Position = positionV3;
-
-            var staticBody = new StaticBody3D();
+            staticBody.Position = positionV3;
             staticBody.AddChild(_meshInstance);
             staticBody.AddChild(_collisionShape);
             parent.AddChild(staticBody);
@@ -189,13 +190,17 @@ public partial class EndlessTerrain : Node3D
 
                 if (lodIndex == 0)
                 {
-                    if (_collisionMesh.hasMesh)
+                    if (_collisionMesh.HasCollisionShape)
                     {
-                        _collisionShape.Shape = _collisionMesh.ArrayMesh.CreateTrimeshShape();
+                        _collisionShape.SetDeferred("shape", _collisionMesh.ConcavePolygonShape);
                     }
                     else if (!_collisionMesh.hasRequestMesh)
                     {
                         _collisionMesh.RequestMesh(_mapData);
+                    }
+                    else if (!_collisionMesh.hasRequestCollisionShape)
+                    {
+                        _collisionMesh.RequestCollisionShape();
                     }
                 }
 
@@ -206,7 +211,7 @@ public partial class EndlessTerrain : Node3D
 
         public void SetVisible(bool visible)
         {
-            _meshInstance.Visible = visible;
+            _meshInstance.SetDeferred("visible", visible);
         }
 
         public bool IsVisible()
@@ -218,8 +223,11 @@ public partial class EndlessTerrain : Node3D
     private class LODMesh
     {
         public ArrayMesh ArrayMesh;
+        public ConcavePolygonShape3D ConcavePolygonShape;
         public bool hasRequestMesh;
         public bool hasMesh;
+        public bool hasRequestCollisionShape;
+        public bool HasCollisionShape;
         private int _lod;
         private Action _updateCallback;
 
@@ -239,6 +247,30 @@ public partial class EndlessTerrain : Node3D
         {
             ArrayMesh = mesh;
             hasMesh = true;
+            _updateCallback();
+        }
+
+        public void RequestCollisionShape()
+        {
+            hasRequestCollisionShape = true;
+
+            ThreadStart threadStart = delegate
+            {
+                CollisionShapeThread(ArrayMesh, OnCollisionShapeReceived);
+            };
+            new Thread(threadStart).Start();
+        }
+
+        private void CollisionShapeThread(ArrayMesh arrayMesh, Action<ConcavePolygonShape3D> callback)
+        {
+            var shape = arrayMesh.CreateTrimeshShape();
+            callback(shape);
+        }
+
+        private void OnCollisionShapeReceived(ConcavePolygonShape3D shape)
+        {
+            HasCollisionShape = true;
+            ConcavePolygonShape = shape;
             _updateCallback();
         }
     }
